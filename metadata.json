@@ -1,0 +1,6 @@
+{
+  "name": "SnapSweep",
+  "description": "Smart Screenshot Cleaner with Material You Dynamic Color, countdown auto-sweep, ML Kit OCR rules, Kept Vault, and unkillable background persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

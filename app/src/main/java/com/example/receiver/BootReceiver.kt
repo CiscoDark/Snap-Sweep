@@ -1,0 +1,24 @@
+package com.example.receiver
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import com.example.service.SnapSweepForegroundService
+import com.example.worker.CleanupWorker
+
+class BootReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val action = intent.action ?: return
+        if (action == Intent.ACTION_BOOT_COMPLETED ||
+            action == "android.intent.action.QUICKBOOT_POWERON" ||
+            action == "com.htc.intent.action.QUICKBOOT_POWERON"
+        ) {
+            // Restart persistent Foreground Service
+            SnapSweepForegroundService.start(context)
+
+            // Reschedule background periodic cleanup worker
+            CleanupWorker.schedulePeriodic(context)
+        }
+    }
+}

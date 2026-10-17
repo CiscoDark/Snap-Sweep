@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SnapSweep</string>
+    <string name="accessibility_service_description">Keeps SnapSweep active in the background to detect newly taken screenshots instantly and safeguard countdown expiration timers against aggressive OEM task killers.</string>
+</resources>
+

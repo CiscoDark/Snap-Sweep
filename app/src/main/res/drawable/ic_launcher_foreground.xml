@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:pivotX="54"
+        android:pivotY="54">
+
+        <!-- Outer device / screenshot frame with soft M3 surface tone -->
+        <path
+            android:fillColor="#E2E2E9"
+            android:pathData="M38,26 H70 C74.4,26 78,29.6 78,34 V74 C78,78.4 74.4,82 70,82 H38 C33.6,82 30,78.4 30,74 V34 C30,29.6 33.6,26 38,26 Z M38,30 C35.8,30 34,31.8 34,34 V74 C34,76.2 35.8,78 38,78 H70 C72.2,78 74,76.2 74,74 V34 C74,31.8 72.2,30 70,30 H38 Z" />
+
+        <!-- Top speaker / camera notch -->
+        <path
+            android:fillColor="#C4C6D0"
+            android:pathData="M48,32 H60 C60.6,32 61,32.4 61,33 C61,33.6 60.6,34 60,34 H48 C47.4,34 47,33.6 47,33 C47,32.4 47.4,32 48,32 Z" />
+
+        <!-- Sweeping Broom Head - Material You Primary -->
+        <path
+            android:fillColor="#A8C7FA"
+            android:pathData="M44,58 L62,40 C63.2,38.8 65.2,38.8 66.4,40 L68,41.6 C69.2,42.8 69.2,44.8 68,46 L50,64 C48.8,65.2 46.8,65.2 45.6,64 L44,62.4 C42.8,61.2 42.8,59.2 44,58 Z" />
+
+        <!-- Sweeping bristles - Material You Tertiary -->
+        <path
+            android:fillColor="#D0BCFF"
+            android:pathData="M40,66 C38,68 37,71 39,73 C41,75 44,74 46,72 L50,68 L44,62 Z" />
+
+        <!-- Dynamic motion sparkles -->
+        <path
+            android:fillColor="#7FCFFF"
+            android:pathData="M66,48 L67.5,52 L71.5,53.5 L67.5,55 L66,59 L64.5,55 L60.5,53.5 L64.5,52 Z" />
+
+        <path
+            android:fillColor="#FFD8E4"
+            android:pathData="M45,39 L46,42 L49,43 L46,44 L45,47 L44,44 L41,43 L44,42 Z" />
+    </group>
+</vector>
