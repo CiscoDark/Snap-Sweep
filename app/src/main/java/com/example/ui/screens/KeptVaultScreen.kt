@@ -1,10 +1,13 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,19 +30,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -47,13 +61,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,15 +79,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import coil.compose.AsyncImage
 import com.example.data.model.ScreenshotItem
 import com.example.ui.UiStats
 import com.example.ui.components.EmptyStateView
+import com.example.util.BiometricAuthHelper
+import com.example.util.PdfExportHelper
+import kotlinx.coroutines.launch
 
 val VAULT_CATEGORIES = listOf("All", "Receipts", "Memos", "IDs & Sensitive", "Tech", "Funny")
 
@@ -88,12 +110,64 @@ fun KeptVaultScreen(
     onDelete: (ScreenshotItem) -> Unit,
     onChangeCategory: (ScreenshotItem, String) -> Unit,
     onItemClick: (ScreenshotItem) -> Unit,
+    requireBiometrics: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var selectedItemIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val isSelectionMode = selectedItemIds.isNotEmpty()
+    var isExportingPdf by remember { mutableStateOf(false) }
+
+    // Session cache of items unlocked via BiometricPrompt
+    var unlockedSensitiveIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     val totalKeptSizeBytes = keptItems.sumOf { it.sizeBytes }
     val keptSizeMb = totalKeptSizeBytes / (1024.0 * 1024.0)
 
-    Column(
+    fun handleItemClick(item: ScreenshotItem) {
+        if (isSelectionMode) {
+            selectedItemIds = if (item.id in selectedItemIds) {
+                selectedItemIds - item.id
+            } else {
+                selectedItemIds + item.id
+            }
+            return
+        }
+
+        // Biometric challenge for sensitive items if enabled and not yet authenticated
+        if (requireBiometrics && item.category == "IDs & Sensitive" && item.id !in unlockedSensitiveIds) {
+            val activity = context as? FragmentActivity
+            if (activity != null) {
+                BiometricAuthHelper.promptBiometric(
+                    activity = activity,
+                    title = "Sensitive Vault Item",
+                    subtitle = "Verify identity to view ${item.displayName}",
+                    onSuccess = {
+                        unlockedSensitiveIds = unlockedSensitiveIds + item.id
+                        onItemClick(item)
+                    },
+                    onError = { errMsg ->
+                        Toast.makeText(context, "Biometric failed: $errMsg", Toast.LENGTH_SHORT).show()
+                    }
+                )
+                return
+            }
+        }
+
+        onItemClick(item)
+    }
+
+    fun handleItemLongClick(item: ScreenshotItem) {
+        selectedItemIds = if (item.id in selectedItemIds) {
+            selectedItemIds - item.id
+        } else {
+            selectedItemIds + item.id
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -106,12 +180,127 @@ fun KeptVaultScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // Multi-Select PDF Export Action Bar
+            if (isSelectionMode) {
+                item(span = { GridItemSpan(2) }) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("multi_select_pdf_bar"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                IconButton(
+                                    onClick = { selectedItemIds = emptySet() },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cancel Selection",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Text(
+                                    text = "${selectedItemIds.size} Selected",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        selectedItemIds = if (selectedItemIds.size == keptItems.size) {
+                                            emptySet()
+                                        } else {
+                                            keptItems.map { it.id }.toSet()
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (selectedItemIds.size == keptItems.size) "Deselect" else "Select All",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val itemsToExport = keptItems.filter { it.id in selectedItemIds }
+                                        if (itemsToExport.isNotEmpty()) {
+                                            isExportingPdf = true
+                                            coroutineScope.launch {
+                                                val result = PdfExportHelper.exportScreenshotsToPdf(context, itemsToExport)
+                                                isExportingPdf = false
+                                                if (result.isSuccess) {
+                                                    val pdfFile = result.getOrNull()
+                                                    if (pdfFile != null) {
+                                                        PdfExportHelper.sharePdf(context, pdfFile)
+                                                        Toast.makeText(context, "Exported ${itemsToExport.size} screenshots to PDF!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "PDF export failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !isExportingPdf,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.testTag("export_selected_pdf_btn")
+                                ) {
+                                    if (isExportingPdf) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.PictureAsPdf,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isExportingPdf) "Exporting..." else "Export PDF",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Vault Summary Hero Banner
             item(span = { GridItemSpan(2) }) {
                 VaultHeroCard(
                     keptCount = keptItems.size,
                     keptSizeMb = keptSizeMb,
-                    totalFreedFormatted = stats.formattedFreed
+                    totalFreedFormatted = stats.formattedFreed,
+                    requireBiometrics = requireBiometrics
                 )
             }
 
@@ -119,6 +308,7 @@ fun KeptVaultScreen(
             item(span = { GridItemSpan(2) }) {
                 PrivacyBlurToggleCard(
                     blurEnabled = blurSensitiveEnabled,
+                    requireBiometrics = requireBiometrics,
                     onToggleBlur = onToggleBlurSensitive
                 )
             }
@@ -181,71 +371,50 @@ fun KeptVaultScreen(
                             label = {
                                 Text(
                                     text = category,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    )
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
-                            modifier = Modifier.testTag("filter_chip_$category")
+                            border = null,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.testTag("vault_cat_$category")
                         )
                     }
                 }
             }
 
-            // Section Header
-            item(span = { GridItemSpan(2) }) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "SAVED SCREENSHOTS (${keptItems.size})",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        ),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Text(
-                        text = "Never auto-purged",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Empty State
             if (keptItems.isEmpty()) {
                 item(span = { GridItemSpan(2) }) {
                     EmptyStateView(
-                        title = "Kept Vault is Empty",
-                        subtitle = if (searchQuery.isNotEmpty()) "No saved screenshots matched \"$searchQuery\"."
-                        else "Lock important screenshots (Receipts, IDs, Memos) so they are permanently protected from auto-deletion.",
-                        actionButtonText = "Clear Filter",
-                        onActionClick = {
-                            onCategorySelected("All")
-                            onSearchQueryChanged("")
-                        }
+                        title = if (searchQuery.isNotBlank() || selectedCategory != "All") "No Matching Screenshots" else "Kept Vault is Empty",
+                        subtitle = if (searchQuery.isNotBlank() || selectedCategory != "All") "Try adjusting your search query or category filter." else "Lock screenshots from your Queue or Swipe Deck to protect them forever.",
+                        icon = Icons.Default.Shield,
+                        actionButtonText = null,
+                        modifier = Modifier.padding(top = 40.dp)
                     )
                 }
             } else {
                 // Kept Screenshots Grid
                 items(keptItems, key = { it.id }) { item ->
+                    val isSelected = item.id in selectedItemIds
+                    val isSensitive = item.category == "IDs & Sensitive"
+                    val isBlurred = blurSensitiveEnabled && isSensitive && (item.id !in unlockedSensitiveIds)
+
                     KeptVaultCard(
                         item = item,
-                        blurSensitive = blurSensitiveEnabled && item.category == "IDs & Sensitive",
+                        blurSensitive = isBlurred,
+                        isSelected = isSelected,
+                        isSelectionMode = isSelectionMode,
                         onUnlockToQueue = { onUnlockToQueue(item) },
                         onDelete = { onDelete(item) },
                         onChangeCategory = { newCategory -> onChangeCategory(item, newCategory) },
-                        onClick = { onItemClick(item) }
+                        onClick = { handleItemClick(item) },
+                        onLongClick = { handleItemLongClick(item) }
                     )
                 }
             }
@@ -262,7 +431,8 @@ fun KeptVaultScreen(
 private fun VaultHeroCard(
     keptCount: Int,
     keptSizeMb: Double,
-    totalFreedFormatted: String
+    totalFreedFormatted: String,
+    requireBiometrics: Boolean
 ) {
     ElevatedCard(
         modifier = Modifier
@@ -285,13 +455,13 @@ private fun VaultHeroCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Shield,
+                        imageVector = if (requireBiometrics) Icons.Default.Fingerprint else Icons.Default.Shield,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "KEPT VAULT",
+                        text = if (requireBiometrics) "BIOMETRIC VAULT" else "KEPT VAULT",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp
@@ -364,13 +534,17 @@ private fun VaultHeroCard(
 @Composable
 private fun PrivacyBlurToggleCard(
     blurEnabled: Boolean,
+    requireBiometrics: Boolean,
     onToggleBlur: (Boolean) -> Unit
 ) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("privacy_blur_toggle_card"),
-        shape = RoundedCornerShape(16.dp)
+            .testTag("privacy_blur_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
         Row(
             modifier = Modifier
@@ -381,23 +555,33 @@ private fun PrivacyBlurToggleCard(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = if (blurEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = null,
-                    tint = if (blurEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (blurEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
                 Column {
                     Text(
-                        text = "Privacy Blur for Sensitive Items",
+                        text = "Privacy Blur on Sensitive Items",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Blurs thumbnails tagged as \"IDs & Sensitive\"",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = if (requireBiometrics) "Protected by Biometric authentication" else "Blurs IDs, Passwords & Sensitive screenshots",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -407,8 +591,8 @@ private fun PrivacyBlurToggleCard(
                 checked = blurEnabled,
                 onCheckedChange = onToggleBlur,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary
+                    checkedThumbColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    checkedTrackColor = MaterialTheme.colorScheme.secondaryContainer
                 ),
                 modifier = Modifier.testTag("privacy_blur_switch")
             )
@@ -416,23 +600,34 @@ private fun PrivacyBlurToggleCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun KeptVaultCard(
     item: ScreenshotItem,
     blurSensitive: Boolean,
+    isSelected: Boolean,
+    isSelectionMode: Boolean,
     onUnlockToQueue: () -> Unit,
     onDelete: () -> Unit,
     onChangeCategory: (String) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     var showCategoryMenu by remember { mutableStateOf(false) }
 
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .testTag("vault_card_${item.id}"),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+            else MaterialTheme.colorScheme.surfaceContainer
+        )
     ) {
         Column {
             // Thumbnail Area with Privacy Blur
@@ -484,11 +679,34 @@ private fun KeptVaultCard(
                                 modifier = Modifier.size(24.dp)
                             )
                             Text(
-                                text = "Blurred (Sensitive)",
+                                text = "Tap to Unlock",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = Color.White
                             )
                         }
+                    }
+                }
+
+                // Selection Indicator Top Left
+                if (isSelectionMode) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary
+                                else Color.Black.copy(alpha = 0.5f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Outlined.Circle,
+                            contentDescription = if (isSelected) "Selected" else "Not selected",
+                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -518,10 +736,10 @@ private fun KeptVaultCard(
                         .fillMaxWidth()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
                             )
                         )
-                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -530,22 +748,23 @@ private fun KeptVaultCard(
                     ) {
                         Text(
                             text = item.displayName,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                             color = Color.White,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = item.formattedSize,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.8f)
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White.copy(alpha = 0.85f)
                         )
                     }
                 }
             }
 
-            // Action Bar: Change Tag, Unlock to Queue, Delete
+            // Card Action Footer
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -553,19 +772,19 @@ private fun KeptVaultCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Change Tag Dropdown Trigger
+                // Change category tag
                 Box {
                     IconButton(
                         onClick = { showCategoryMenu = true },
                         modifier = Modifier
                             .size(32.dp)
-                            .testTag("change_category_btn_${item.id}")
+                            .testTag("change_cat_${item.id}")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Label,
-                            contentDescription = "Change Tag",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(17.dp)
+                            contentDescription = "Change Category",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
 
@@ -585,34 +804,36 @@ private fun KeptVaultCard(
                     }
                 }
 
-                // Unlock back to Queue
-                IconButton(
-                    onClick = onUnlockToQueue,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .testTag("unlock_vault_btn_${item.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.LockOpen,
-                        contentDescription = "Unlock to Expiring Queue",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // Unlock back to Queue
+                    IconButton(
+                        onClick = onUnlockToQueue,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("unlock_queue_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LockOpen,
+                            contentDescription = "Return to Queue",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
 
-                // Delete
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .testTag("delete_vault_btn_${item.id}")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteOutline,
-                        contentDescription = "Delete from Vault",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(17.dp)
-                    )
+                    // Delete / Move to Trash
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .testTag("vault_delete_${item.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = "Move to Trash",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

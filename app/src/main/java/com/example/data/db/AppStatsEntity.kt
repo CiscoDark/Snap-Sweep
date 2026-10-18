@@ -13,5 +13,6 @@ data class AppStatsEntity(
     val themeMode: String = "SYSTEM",
     val pureBlackAmoled: Boolean = false,
     val autoSweepEnabled: Boolean = false, // DISABLED BY DEFAULT on install
-    val installTimestamp: Long = 0L
+    val installTimestamp: Long = 0L,
+    val requireBiometricsForVault: Boolean = false
 )

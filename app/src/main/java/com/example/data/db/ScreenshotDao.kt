@@ -72,4 +72,7 @@ interface ScreenshotDao {
 
     @Query("UPDATE app_stats SET installTimestamp = :timestamp WHERE id = 1")
     suspend fun updateInstallTimestamp(timestamp: Long)
+
+    @Query("UPDATE app_stats SET requireBiometricsForVault = :required WHERE id = 1")
+    suspend fun updateBiometricsPreference(required: Boolean)
 }

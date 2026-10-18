@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Edit
@@ -84,6 +85,7 @@ import coil.compose.AsyncImage
 import com.example.data.model.ScreenshotItem
 import com.example.ocr.OcrManager
 import com.example.ui.screens.VAULT_CATEGORIES
+import com.example.util.CleanCropHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -111,6 +113,7 @@ fun FullScreenScreenshotViewer(
     var isOcrRunning by remember { mutableStateOf(false) }
     var ocrResultText by remember { mutableStateOf<String?>(null) }
     var showOcrDialog by remember { mutableStateOf(false) }
+    var isCropping by remember { mutableStateOf(false) }
 
     var showCategoryMenu by remember { mutableStateOf(false) }
 
@@ -275,7 +278,47 @@ fun FullScreenScreenshotViewer(
                         )
                     }
 
-                    // Share Button
+                    // Clean Share (Crop Status & Navigation Bars)
+                    FilledTonalButton(
+                        onClick = {
+                            val uri = item.contentUri ?: return@FilledTonalButton
+                            isCropping = true
+                            coroutineScope.launch {
+                                val result = CleanCropHelper.cropAndShare(context, uri, item.displayName)
+                                isCropping = false
+                                if (result.isFailure) {
+                                    Toast.makeText(context, "Could not crop screenshot: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("viewer_clean_share_btn")
+                    ) {
+                        if (isCropping) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Crop,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isCropping) "Trimming..." else "Clean Share",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+
+                    // Original Share Button
                     IconButton(
                         onClick = { shareScreenshot() },
                         modifier = Modifier
@@ -286,7 +329,7 @@ fun FullScreenScreenshotViewer(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
+                            contentDescription = "Share Original",
                             tint = Color.White
                         )
                     }

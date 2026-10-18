@@ -34,8 +34,8 @@ fun EmptyStateView(
     title: String,
     subtitle: String,
     icon: ImageVector = Icons.Default.ImageSearch,
-    actionButtonText: String = "Scan / Refresh Gallery",
-    onActionClick: () -> Unit,
+    actionButtonText: String? = "Scan / Refresh Gallery",
+    onActionClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -79,19 +79,21 @@ fun EmptyStateView(
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        if (actionButtonText != null && onActionClick != null) {
+            Spacer(modifier = Modifier.height(20.dp))
 
-        FilledTonalButton(
-            onClick = onActionClick,
-            modifier = Modifier.testTag("empty_state_action_btn")
-        ) {
-            Icon(
-                imageVector = Icons.Default.Refresh,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = actionButtonText)
+            FilledTonalButton(
+                onClick = onActionClick,
+                modifier = Modifier.testTag("empty_state_action_btn")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = actionButtonText)
+            }
         }
     }
 }

@@ -283,4 +283,26 @@ class ScreenshotRepository(
     suspend fun revertSnooze(item: ScreenshotItem, previousSnooze: Long?) {
         dao.updateSnooze(item.id, previousSnooze)
     }
+
+    suspend fun restoreTrashedToKept(id: String) {
+        val existing = dao.getScreenshotById(id)
+        if (existing != null) {
+            dao.updateTrashedStatus(id, isTrashed = false, trashedAt = null)
+            dao.updateKeptStatus(id, isKept = true, keptAt = System.currentTimeMillis())
+            dao.revertDeletedItem(existing.sizeBytes)
+        }
+    }
+
+    suspend fun restoreTrashedToQueue(id: String) {
+        val existing = dao.getScreenshotById(id)
+        if (existing != null) {
+            dao.updateTrashedStatus(id, isTrashed = false, trashedAt = null)
+            dao.updateKeptStatus(id, isKept = false, keptAt = 0L)
+            dao.revertDeletedItem(existing.sizeBytes)
+        }
+    }
+
+    suspend fun updateBiometricsPreference(required: Boolean) {
+        dao.updateBiometricsPreference(required)
+    }
 }

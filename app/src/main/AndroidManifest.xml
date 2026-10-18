@@ -53,6 +53,17 @@
             android:name="com.example.service.SnapSweepForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <!-- FileProvider for Clean Share and Multi-Screenshot PDF Export -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

@@ -109,6 +109,7 @@ dependencies {
   implementation(libs.converter.moshi)
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.mlkit.text.recognition)
+  implementation(libs.androidx.biometric)
   implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)

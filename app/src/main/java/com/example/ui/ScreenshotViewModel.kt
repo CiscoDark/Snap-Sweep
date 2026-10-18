@@ -134,6 +134,13 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
     private val _vaultSearchQuery = MutableStateFlow("")
     val vaultSearchQuery: StateFlow<String> = _vaultSearchQuery.asStateFlow()
 
+    // Phase 8: Biometrics & Recycle Bin
+    private val _requireBiometricsForVault = MutableStateFlow(false)
+    val requireBiometricsForVault: StateFlow<Boolean> = _requireBiometricsForVault.asStateFlow()
+
+    val trashedScreenshots: StateFlow<List<KeptScreenshotEntity>> = repository.getTrashedScreenshots()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Phase 5: Smart Rules & ML Kit OCR
     private val _ruleOtpBurnerEnabled = MutableStateFlow(true)
     val ruleOtpBurnerEnabled: StateFlow<Boolean> = _ruleOtpBurnerEnabled.asStateFlow()
@@ -184,6 +191,7 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
                         _themeMode.value = AppThemeMode.SYSTEM
                     }
                     _pureBlackAmoled.value = stats.pureBlackAmoled
+                    _requireBiometricsForVault.value = stats.requireBiometricsForVault
                 }
             }
         }
@@ -306,6 +314,35 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
 
     fun clearMessage() {
         _message.value = null
+    }
+
+    fun toggleRequireBiometrics(enabled: Boolean) {
+        _requireBiometricsForVault.value = enabled
+        viewModelScope.launch {
+            repository.updateBiometricsPreference(enabled)
+            _message.value = if (enabled) "Biometric Vault Lock enabled" else "Biometric Vault Lock disabled"
+        }
+    }
+
+    fun restoreTrashedToKept(id: String) {
+        viewModelScope.launch {
+            repository.restoreTrashedToKept(id)
+            _message.value = "Restored screenshot to Kept Vault"
+        }
+    }
+
+    fun restoreTrashedToQueue(id: String) {
+        viewModelScope.launch {
+            repository.restoreTrashedToQueue(id)
+            _message.value = "Restored screenshot to Queue"
+        }
+    }
+
+    fun emptyTrashPermanently() {
+        viewModelScope.launch {
+            repository.clearAllRecycleBin()
+            _message.value = "Recycle Bin permanently cleared"
+        }
     }
 
     fun triggerManualCleanup() {

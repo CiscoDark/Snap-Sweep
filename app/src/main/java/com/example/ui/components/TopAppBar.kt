@@ -15,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +41,8 @@ import com.example.ui.UiStats
 fun SnapSweepTopAppBar(
     stats: UiStats,
     onRefresh: () -> Unit,
+    trashedCount: Int = 0,
+    onOpenRecycleBin: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -91,6 +96,34 @@ fun SnapSweepTopAppBar(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = onOpenRecycleBin,
+                        modifier = Modifier.testTag("open_recycle_bin_btn")
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (trashedCount > 0) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ) {
+                                        Text(
+                                            text = "$trashedCount",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.DeleteSweep,
+                                contentDescription = "Recently Swept Recycle Bin",
+                                tint = if (trashedCount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = onRefresh,
                         modifier = Modifier.testTag("refresh_media_btn")
