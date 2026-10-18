@@ -560,6 +560,35 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
         _message.value = "Notification posted! Check shade for [Keep Forever], [🔥 15m Burner], [Delete Now]"
     }
 
+    fun stitchScreenshots(items: List<ScreenshotItem>) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val result = com.example.util.LongStitchHelper.stitchAndSaveToVault(app, items, repository)
+            if (result.isSuccess) {
+                _message.value = "Stitched ${items.size} screenshots & saved to Kept Vault!"
+                repository.scanRealMedia()
+            } else {
+                _message.value = "Stitching failed: ${result.exceptionOrNull()?.message}"
+            }
+        }
+    }
+
+    fun exportScreenshotsToPdf(items: List<ScreenshotItem>) {
+        viewModelScope.launch {
+            val app = getApplication<Application>()
+            val result = com.example.util.PdfExportHelper.exportScreenshotsToPdf(app, items)
+            if (result.isSuccess) {
+                val pdfFile = result.getOrNull()
+                if (pdfFile != null) {
+                    com.example.util.PdfExportHelper.sharePdf(app, pdfFile)
+                    _message.value = "Exported ${items.size} screenshots to PDF!"
+                }
+            } else {
+                _message.value = "PDF export failed: ${result.exceptionOrNull()?.message}"
+            }
+        }
+    }
+
     // UI Stats combined
     val uiStats: StateFlow<UiStats> = combine(
         dbStats,

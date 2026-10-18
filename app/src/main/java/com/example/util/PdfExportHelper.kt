@@ -74,6 +74,25 @@ object PdfExportHelper {
                 pdfDocument.writeTo(out)
             }
 
+            // Also copy to MediaStore.Downloads on Android Q+ so it is accessible in user's Downloads
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.Downloads.DISPLAY_NAME, outputFile.name)
+                        put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/pdf")
+                        put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val downloadUri = context.contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    if (downloadUri != null) {
+                        context.contentResolver.openOutputStream(downloadUri)?.use { outStream ->
+                            outputFile.inputStream().use { inStream -> inStream.copyTo(outStream) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
             Result.success(outputFile)
         } catch (e: Exception) {
             e.printStackTrace()

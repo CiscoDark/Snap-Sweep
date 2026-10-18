@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.ViewStream
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -111,6 +112,7 @@ fun KeptVaultScreen(
     onChangeCategory: (ScreenshotItem, String) -> Unit,
     onItemClick: (ScreenshotItem) -> Unit,
     requireBiometrics: Boolean = false,
+    onStitchScreenshots: (List<ScreenshotItem>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -119,6 +121,7 @@ fun KeptVaultScreen(
     var selectedItemIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val isSelectionMode = selectedItemIds.isNotEmpty()
     var isExportingPdf by remember { mutableStateOf(false) }
+    var isStitching by remember { mutableStateOf(false) }
 
     // Session cache of items unlocked via BiometricPrompt
     var unlockedSensitiveIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -180,7 +183,7 @@ fun KeptVaultScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // Multi-Select PDF Export Action Bar
+            // Multi-Select Action Bar (PDF & Long-Stitch Exporter)
             if (isSelectionMode) {
                 item(span = { GridItemSpan(2) }) {
                     Card(
@@ -193,38 +196,39 @@ fun KeptVaultScreen(
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            // Header Row: Count & Select All
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(
-                                    onClick = { selectedItemIds = emptySet() },
-                                    modifier = Modifier.size(32.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Cancel Selection",
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    IconButton(
+                                        onClick = { selectedItemIds = emptySet() },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Cancel Selection",
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                    Text(
+                                        text = "${selectedItemIds.size} Selected",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
-                                Text(
-                                    text = "${selectedItemIds.size} Selected",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
                                 TextButton(
                                     onClick = {
                                         selectedItemIds = if (selectedItemIds.size == keptItems.size) {
@@ -240,7 +244,14 @@ fun KeptVaultScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
+                            }
 
+                            // Actions Row: Action A (Export PDF) & Action B (Stitch Vertically)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Action A: Export Selected as PDF
                                 Button(
                                     onClick = {
                                         val itemsToExport = keptItems.filter { it.id in selectedItemIds }
@@ -261,13 +272,15 @@ fun KeptVaultScreen(
                                             }
                                         }
                                     },
-                                    enabled = !isExportingPdf,
+                                    enabled = !isExportingPdf && !isStitching,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                     ),
                                     shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.testTag("export_selected_pdf_btn")
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("export_selected_pdf_btn")
                                 ) {
                                     if (isExportingPdf) {
                                         CircularProgressIndicator(
@@ -285,7 +298,52 @@ fun KeptVaultScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = if (isExportingPdf) "Exporting..." else "Export PDF",
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                // Action B: Stitch Vertically into continuous tall image
+                                FilledTonalButton(
+                                    onClick = {
+                                        val itemsToStitch = keptItems.filter { it.id in selectedItemIds }
+                                        if (itemsToStitch.isNotEmpty()) {
+                                            isStitching = true
+                                            coroutineScope.launch {
+                                                onStitchScreenshots(itemsToStitch)
+                                                isStitching = false
+                                                selectedItemIds = emptySet()
+                                            }
+                                        }
+                                    },
+                                    enabled = !isExportingPdf && !isStitching,
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                        contentColor = MaterialTheme.colorScheme.onSecondary
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("stitch_selected_btn")
+                                ) {
+                                    if (isStitching) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.onSecondary
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.ViewStream,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isStitching) "Stitching..." else "Stitch",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
                                     )
                                 }
                             }

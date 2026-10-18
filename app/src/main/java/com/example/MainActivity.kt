@@ -98,6 +98,7 @@ fun SnapSweepApp(
 
     var showRecycleBinSheet by remember { mutableStateOf(false) }
     val recycleBinSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isVaultUnlockedInSession by remember { mutableStateOf(false) }
 
     val ruleOtpBurnerEnabled by viewModel.ruleOtpBurnerEnabled.collectAsState()
     val ruleAutoKeepReceiptsEnabled by viewModel.ruleAutoKeepReceiptsEnabled.collectAsState()
@@ -176,7 +177,31 @@ fun SnapSweepApp(
         bottomBar = {
             SnapSweepBottomNavBar(
                 selectedTab = currentTab,
-                onTabSelected = { viewModel.selectTab(it) },
+                onTabSelected = { targetTab ->
+                    if (targetTab == 2 && requireBiometricsForVault && !isVaultUnlockedInSession) {
+                        val activity = context as? FragmentActivity
+                        if (activity != null) {
+                            com.example.util.BiometricAuthHelper.promptBiometric(
+                                activity = activity,
+                                title = "Kept Vault Lock",
+                                subtitle = "Confirm identity with fingerprint or PIN to access Vault",
+                                onSuccess = {
+                                    isVaultUnlockedInSession = true
+                                    viewModel.selectTab(2)
+                                },
+                                onError = { errMsg ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Vault biometric lock: $errMsg")
+                                    }
+                                }
+                            )
+                        } else {
+                            viewModel.selectTab(2)
+                        }
+                    } else {
+                        viewModel.selectTab(targetTab)
+                    }
+                },
                 queueCount = uiStats.queueCount,
                 keptCount = uiStats.keptCount
             )
@@ -235,7 +260,8 @@ fun SnapSweepApp(
                         onDelete = { viewModel.deleteItem(it) },
                         onChangeCategory = { item, cat -> viewModel.updateItemCategory(item, cat) },
                         onItemClick = { viewModel.showDetail(it) },
-                        requireBiometrics = requireBiometricsForVault
+                        requireBiometrics = requireBiometricsForVault,
+                        onStitchScreenshots = { viewModel.stitchScreenshots(it) }
                     )
                     3 -> SmartRulesScreen(
                         themeMode = themeMode,

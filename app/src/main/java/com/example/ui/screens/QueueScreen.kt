@@ -21,15 +21,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,6 +73,10 @@ fun QueueScreen(
     val expiredCount = items.count { it.isExpired(nowMillis, defaultDurationMillis) }
     val urgentCount = items.count { it.isUrgent(nowMillis, defaultDurationMillis) }
 
+    val context = LocalContext.current
+    val isAutoSweepPaused = com.example.util.AutoSweepPauseHelper.isPaused(context)
+    val remainingPauseMins = com.example.util.AutoSweepPauseHelper.getRemainingMinutes(context)
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -82,6 +90,62 @@ fun QueueScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // Quick Settings Auto-Sweep 1-Hour Pause Banner
+            if (isAutoSweepPaused) {
+                item(span = { GridItemSpan(2) }) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("auto_sweep_paused_banner"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("⏸️", fontSize = 20.sp)
+                                Column {
+                                    Text(
+                                        text = "Auto-Sweep Paused (${remainingPauseMins}m remaining)",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = "Timer paused via Quick Settings Tile. Safe to capture temporary screenshots.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+                            TextButton(
+                                onClick = {
+                                    com.example.util.AutoSweepPauseHelper.unpause(context)
+                                    onRestartForegroundService()
+                                }
+                            ) {
+                                Text(
+                                    "Resume",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Storage Reclaimed Summary Card
             item(span = { GridItemSpan(2) }) {
                 StorageReclaimedDashboardCard(

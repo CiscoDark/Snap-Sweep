@@ -19,7 +19,13 @@ object CleanCropHelper {
      * Crops top 4% (status bar) and bottom 4% (navigation gesture bar) of the screenshot,
      * writes it to cacheDir/clean_shares, and opens the system Share Sheet.
      */
-    suspend fun cropAndShare(context: Context, imageUri: Uri, displayName: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun cropAndShare(
+        context: Context,
+        imageUri: Uri,
+        displayName: String,
+        topTrimPercent: Float = 0.04f,
+        bottomTrimPercent: Float = 0.05f
+    ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val originalBitmap: Bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(context.contentResolver, imageUri)
@@ -35,9 +41,9 @@ object CleanCropHelper {
             val width = originalBitmap.width
             val height = originalBitmap.height
 
-            // Calculate 4% trim margins for status bar (top) and navigation bar (bottom)
-            val topMargin = (height * 0.04f).toInt().coerceAtLeast(0)
-            val bottomMargin = (height * 0.04f).toInt().coerceAtLeast(0)
+            // Calculate trim margins for status bar (top) and navigation gesture bar (bottom)
+            val topMargin = (height * topTrimPercent.coerceIn(0f, 0.2f)).toInt().coerceAtLeast(0)
+            val bottomMargin = (height * bottomTrimPercent.coerceIn(0f, 0.2f)).toInt().coerceAtLeast(0)
             val croppedHeight = (height - topMargin - bottomMargin).coerceAtLeast(100)
 
             val croppedBitmap = Bitmap.createBitmap(

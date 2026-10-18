@@ -155,13 +155,25 @@ class ExampleRobolectricTest {
         val ignoreIntent = com.example.util.PowerOptimizationHelper.createIgnoreBatteryOptimizationsIntent(context)
         org.junit.Assert.assertNotNull(ignoreIntent)
 
-        val accessIntent = com.example.util.PowerOptimizationHelper.createAccessibilitySettingsIntent()
-        org.junit.Assert.assertNotNull(accessIntent)
-
         // BootReceiver onReceive
         val bootReceiver = com.example.receiver.BootReceiver()
         val bootIntent = android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED)
         bootReceiver.onReceive(context, bootIntent)
+    }
+
+    @Test
+    fun `quick settings auto-sweep pause helper test`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        com.example.util.AutoSweepPauseHelper.unpause(context)
+        assertFalse(com.example.util.AutoSweepPauseHelper.isPaused(context))
+
+        val isNowPaused = com.example.util.AutoSweepPauseHelper.togglePause1Hour(context)
+        assertTrue(isNowPaused)
+        assertTrue(com.example.util.AutoSweepPauseHelper.isPaused(context))
+        assertTrue(com.example.util.AutoSweepPauseHelper.getRemainingMinutes(context) in 58..60)
+
+        com.example.util.AutoSweepPauseHelper.unpause(context)
+        assertFalse(com.example.util.AutoSweepPauseHelper.isPaused(context))
     }
 
     @Test

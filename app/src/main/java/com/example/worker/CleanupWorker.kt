@@ -27,6 +27,11 @@ class CleanupWorker(
             val dao = db.screenshotDao()
             val stats = dao.getAppStats().firstOrNull()
 
+            // Safety Check 0: Quick Settings / User 1-Hour Pause
+            if (com.example.util.AutoSweepPauseHelper.isPaused(applicationContext)) {
+                return@withContext Result.success()
+            }
+
             // Safety Check 1: Auto-Sweep must be explicitly enabled by user
             if (stats?.autoSweepEnabled != true) {
                 return@withContext Result.success()

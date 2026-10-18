@@ -52,10 +52,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -114,6 +116,9 @@ fun FullScreenScreenshotViewer(
     var ocrResultText by remember { mutableStateOf<String?>(null) }
     var showOcrDialog by remember { mutableStateOf(false) }
     var isCropping by remember { mutableStateOf(false) }
+    var showCropTrimmerDialog by remember { mutableStateOf(false) }
+    var topTrimPercent by remember { mutableFloatStateOf(0.04f) }
+    var bottomTrimPercent by remember { mutableFloatStateOf(0.05f) }
 
     var showCategoryMenu by remember { mutableStateOf(false) }
 
@@ -281,15 +286,7 @@ fun FullScreenScreenshotViewer(
                     // Clean Share (Crop Status & Navigation Bars)
                     FilledTonalButton(
                         onClick = {
-                            val uri = item.contentUri ?: return@FilledTonalButton
-                            isCropping = true
-                            coroutineScope.launch {
-                                val result = CleanCropHelper.cropAndShare(context, uri, item.displayName)
-                                isCropping = false
-                                if (result.isFailure) {
-                                    Toast.makeText(context, "Could not crop screenshot: ${result.exceptionOrNull()?.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            showCropTrimmerDialog = true
                         },
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -608,6 +605,202 @@ fun FullScreenScreenshotViewer(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Copy Again")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Clean Crop & Share Trimmer Modal Dialog
+    if (showCropTrimmerDialog) {
+        Dialog(onDismissRequest = { showCropTrimmerDialog = false }) {
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Crop,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Text(
+                                text = "Trim System Bars",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(onClick = { showCropTrimmerDialog = false }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Automatically trims notification status bar and navigation pill so shared screenshots look pristine.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Presets
+                    Text(
+                        text = "Presets",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = topTrimPercent == 0.04f && bottomTrimPercent == 0.05f,
+                            onClick = {
+                                topTrimPercent = 0.04f
+                                bottomTrimPercent = 0.05f
+                            },
+                            label = { Text("Default (4%/5%)", fontSize = 11.sp) }
+                        )
+                        FilterChip(
+                            selected = topTrimPercent == 0.04f && bottomTrimPercent == 0.0f,
+                            onClick = {
+                                topTrimPercent = 0.04f
+                                bottomTrimPercent = 0.0f
+                            },
+                            label = { Text("Top Only", fontSize = 11.sp) }
+                        )
+                        FilterChip(
+                            selected = topTrimPercent == 0.06f && bottomTrimPercent == 0.06f,
+                            onClick = {
+                                topTrimPercent = 0.06f
+                                bottomTrimPercent = 0.06f
+                            },
+                            label = { Text("Aggressive", fontSize = 11.sp) }
+                        )
+                    }
+
+                    // Interactive Sliders
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Top (Status Bar)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = String.format("%.1f%%", topTrimPercent * 100),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Slider(
+                            value = topTrimPercent,
+                            onValueChange = { topTrimPercent = it },
+                            valueRange = 0f..0.12f
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Bottom (Nav Bar)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = String.format("%.1f%%", bottomTrimPercent * 100),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Slider(
+                            value = bottomTrimPercent,
+                            onValueChange = { bottomTrimPercent = it },
+                            valueRange = 0f..0.12f
+                        )
+                    }
+
+                    // Action Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { showCropTrimmerDialog = false },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Cancel")
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Button(
+                            onClick = {
+                                val uri = item.contentUri ?: return@Button
+                                showCropTrimmerDialog = false
+                                isCropping = true
+                                coroutineScope.launch {
+                                    val result = CleanCropHelper.cropAndShare(
+                                        context = context,
+                                        imageUri = uri,
+                                        displayName = item.displayName,
+                                        topTrimPercent = topTrimPercent,
+                                        bottomTrimPercent = bottomTrimPercent
+                                    )
+                                    isCropping = false
+                                    if (result.isFailure) {
+                                        Toast.makeText(
+                                            context,
+                                            "Cropping failed: ${result.exceptionOrNull()?.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            },
+                            enabled = !isCropping,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary
+                            ),
+                            modifier = Modifier.testTag("confirm_clean_crop_share_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Crop,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Trim & Share")
                         }
                     }
                 }

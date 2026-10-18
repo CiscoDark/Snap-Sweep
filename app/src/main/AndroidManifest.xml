@@ -64,6 +64,17 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- Quick Settings Tile for Pausing Auto-Sweep -->
+        <service
+            android:name="com.example.service.SnapSweepTileService"
+            android:icon="@drawable/ic_launcher_monochrome"
+            android:label="SnapSweep"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

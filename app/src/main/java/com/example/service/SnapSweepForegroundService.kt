@@ -225,7 +225,13 @@ class SnapSweepForegroundService : Service() {
                     val repo = repository ?: ScreenshotRepository(applicationContext)
                     val queueSize = repo.realScreenshots.value.count { !it.isKept && !it.isLegacy && !it.isTrashed }
                     val nextSweepMinutes = 15 - ((System.currentTimeMillis() / 60000) % 15)
-                    val text = "Watching $queueSize new screenshots • Next auto-sweep in ${nextSweepMinutes}m"
+                    val isPaused = com.example.util.AutoSweepPauseHelper.isPaused(applicationContext)
+                    val text = if (isPaused) {
+                        val pauseMins = com.example.util.AutoSweepPauseHelper.getRemainingMinutes(applicationContext)
+                        "⏸️ Paused via Quick Settings (${pauseMins}m left) • Auto-sweep halted"
+                    } else {
+                        "Watching $queueSize new screenshots • Next auto-sweep in ${nextSweepMinutes}m"
+                    }
                     val notification = buildGuardNotification(text)
                     val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                     manager?.notify(NOTIFICATION_ID, notification)
