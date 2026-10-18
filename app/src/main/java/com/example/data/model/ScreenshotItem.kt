@@ -15,7 +15,10 @@ data class ScreenshotItem(
     val keptAtMillis: Long? = null,
     val snoozeUntilMillis: Long? = null,
     val category: String = "General",
-    val isOtpBurner: Boolean = false
+    val isOtpBurner: Boolean = false,
+    val isLegacy: Boolean = false, // Taken prior to app installation (Immune to auto-sweep)
+    val isTrashed: Boolean = false, // In SnapSweep Recycle Bin (Recoverable)
+    val trashedAtMillis: Long? = null
 ) {
     /**
      * Calculates the expiration timestamp based on global duration or custom snooze.
@@ -33,12 +36,22 @@ data class ScreenshotItem(
         return getExpirationMillis(defaultDurationMillis) - nowMillis
     }
 
+    /**
+     * Urgent flag: Under 30 minutes left.
+     * Legacy and Trashed screenshots NEVER become urgent or expire.
+     */
     fun isUrgent(nowMillis: Long, defaultDurationMillis: Long): Boolean {
+        if (isLegacy || isKept || isTrashed) return false
         val remaining = getRemainingMillis(nowMillis, defaultDurationMillis)
-        return remaining in 0..(30 * 60 * 1000L) // Under 30 minutes
+        return remaining in 0..(30 * 60 * 1000L)
     }
 
+    /**
+     * Expired flag.
+     * Legacy, Kept, and Trashed screenshots NEVER expire.
+     */
     fun isExpired(nowMillis: Long, defaultDurationMillis: Long): Boolean {
+        if (isLegacy || isKept || isTrashed) return false
         return getRemainingMillis(nowMillis, defaultDurationMillis) <= 0
     }
 

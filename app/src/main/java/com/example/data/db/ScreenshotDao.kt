@@ -4,14 +4,16 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ScreenshotDao {
 
-    @Query("SELECT * FROM kept_screenshots WHERE isKept = 1 ORDER BY keptAtMillis DESC")
+    @Query("SELECT * FROM kept_screenshots WHERE isKept = 1 AND isTrashed = 0 ORDER BY keptAtMillis DESC")
     fun getKeptScreenshots(): Flow<List<KeptScreenshotEntity>>
+
+    @Query("SELECT * FROM kept_screenshots WHERE isTrashed = 1 ORDER BY trashedAtMillis DESC")
+    fun getTrashedScreenshots(): Flow<List<KeptScreenshotEntity>>
 
     @Query("SELECT * FROM kept_screenshots")
     fun getAllScreenshotStates(): Flow<List<KeptScreenshotEntity>>
@@ -25,8 +27,14 @@ interface ScreenshotDao {
     @Query("DELETE FROM kept_screenshots WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("DELETE FROM kept_screenshots WHERE isTrashed = 1")
+    suspend fun clearAllTrashed()
+
     @Query("UPDATE kept_screenshots SET isKept = :isKept, keptAtMillis = :keptAt WHERE id = :id")
     suspend fun updateKeptStatus(id: String, isKept: Boolean, keptAt: Long)
+
+    @Query("UPDATE kept_screenshots SET isTrashed = :isTrashed, trashedAtMillis = :trashedAt, isKept = 0 WHERE id = :id")
+    suspend fun updateTrashedStatus(id: String, isTrashed: Boolean, trashedAt: Long?)
 
     @Query("UPDATE kept_screenshots SET snoozeUntilMillis = :snoozeUntil WHERE id = :id")
     suspend fun updateSnooze(id: String, snoozeUntil: Long?)
@@ -58,4 +66,10 @@ interface ScreenshotDao {
 
     @Query("UPDATE app_stats SET pureBlackAmoled = :enabled WHERE id = 1")
     suspend fun updatePureBlackAmoled(enabled: Boolean)
+
+    @Query("UPDATE app_stats SET autoSweepEnabled = :enabled WHERE id = 1")
+    suspend fun updateAutoSweepEnabled(enabled: Boolean)
+
+    @Query("UPDATE app_stats SET installTimestamp = :timestamp WHERE id = 1")
+    suspend fun updateInstallTimestamp(timestamp: Long)
 }

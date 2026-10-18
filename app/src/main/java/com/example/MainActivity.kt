@@ -93,7 +93,6 @@ fun SnapSweepApp(
     val ruleBloatAlertEnabled by viewModel.ruleBloatAlertEnabled.collectAsState()
     val isScanningRules by viewModel.isScanningRules.collectAsState()
     val isIgnoringBatteryOptimizations by viewModel.isIgnoringBatteryOptimizations.collectAsState()
-    val isAccessibilityEnabled by viewModel.isAccessibilityEnabled.collectAsState()
     val isForegroundServiceRunning by viewModel.isForegroundServiceRunning.collectAsState()
 
     val context = LocalContext.current
@@ -194,10 +193,8 @@ fun SnapSweepApp(
                         onManualCleanExpired = { viewModel.triggerManualCleanup() },
                         stats = uiStats,
                         isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
-                        isAccessibilityEnabled = isAccessibilityEnabled,
                         isForegroundServiceRunning = isForegroundServiceRunning,
                         onRequestDisableBatteryOptimization = { viewModel.requestDisableBatteryOptimization(context) },
-                        onRequestOpenAccessibilitySettings = { viewModel.requestOpenAccessibilitySettings(context) },
                         onRestartForegroundService = { viewModel.restartForegroundService() }
                     )
                     1 -> SwipeDeckScreen(
@@ -243,10 +240,8 @@ fun SnapSweepApp(
                         onTriggerTestNotification = { viewModel.triggerTestScreenshotNotification() },
                         stats = uiStats,
                         isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
-                        isAccessibilityEnabled = isAccessibilityEnabled,
                         isForegroundServiceRunning = isForegroundServiceRunning,
                         onRequestDisableBatteryOptimization = { viewModel.requestDisableBatteryOptimization(context) },
-                        onRequestOpenAccessibilitySettings = { viewModel.requestOpenAccessibilitySettings(context) },
                         onRestartForegroundService = { viewModel.restartForegroundService() }
                     )
                 }

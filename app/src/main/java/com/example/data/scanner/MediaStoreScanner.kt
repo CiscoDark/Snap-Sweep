@@ -38,7 +38,7 @@ object MediaStoreScanner {
         }
     }
 
-    suspend fun scanScreenshots(context: Context): List<ScreenshotItem> = withContext(Dispatchers.IO) {
+    suspend fun scanScreenshots(context: Context, installTimestamp: Long = 0L): List<ScreenshotItem> = withContext(Dispatchers.IO) {
         if (!hasReadImagesPermission(context)) {
             return@withContext emptyList()
         }
@@ -112,6 +112,8 @@ object MediaStoreScanner {
                     val height = if (heightCol != -1) c.getInt(heightCol) else 2400
                     val relativePath = if (pathCol != -1) c.getString(pathCol) ?: "Pictures/Screenshots" else "Pictures/Screenshots"
 
+                    val isLegacy = installTimestamp > 0L && dateAddedMillis < installTimestamp
+
                     val contentUri = ContentUris.withAppendedId(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         id
@@ -126,7 +128,8 @@ object MediaStoreScanner {
                             sizeBytes = if (sizeBytes > 0) sizeBytes else 1_850_000L,
                             width = if (width > 0) width else 1080,
                             height = if (height > 0) height else 2400,
-                            relativePath = relativePath
+                            relativePath = relativePath,
+                            isLegacy = isLegacy
                         )
                     )
                 }

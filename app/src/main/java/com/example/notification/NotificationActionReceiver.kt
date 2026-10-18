@@ -51,9 +51,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
                 ScreenshotNotificationHelper.ACTION_DELETE -> {
                     if (target != null) {
-                        repository.deleteItem(target)
+                        repository.trashItem(target)
                     }
-                    showToast(context, "Deleted: $displayName")
+                    showToast(context, "Moved to Recycle Bin: $displayName")
                 }
             }
         }

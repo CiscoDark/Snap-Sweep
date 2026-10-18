@@ -60,10 +60,8 @@ fun QueueScreen(
     onManualCleanExpired: () -> Unit,
     stats: UiStats,
     isIgnoringBatteryOptimizations: Boolean,
-    isAccessibilityEnabled: Boolean,
     isForegroundServiceRunning: Boolean,
     onRequestDisableBatteryOptimization: () -> Unit,
-    onRequestOpenAccessibilitySettings: () -> Unit,
     onRestartForegroundService: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -105,10 +103,8 @@ fun QueueScreen(
             item(span = { GridItemSpan(2) }) {
                 BackgroundSurvivalCard(
                     isIgnoringBatteryOptimizations = isIgnoringBatteryOptimizations,
-                    isAccessibilityEnabled = isAccessibilityEnabled,
                     isForegroundServiceRunning = isForegroundServiceRunning,
                     onRequestDisableBatteryOptimization = onRequestDisableBatteryOptimization,
-                    onRequestOpenAccessibilitySettings = onRequestOpenAccessibilitySettings,
                     onRestartForegroundService = onRestartForegroundService
                 )
             }

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -52,17 +51,14 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun BackgroundSurvivalCard(
     isIgnoringBatteryOptimizations: Boolean,
-    isAccessibilityEnabled: Boolean,
     isForegroundServiceRunning: Boolean,
     onRequestDisableBatteryOptimization: () -> Unit,
-    onRequestOpenAccessibilitySettings: () -> Unit,
     onRestartForegroundService: () -> Unit,
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(initiallyExpanded || !isIgnoringBatteryOptimizations) }
-
-    val allProtected = isIgnoringBatteryOptimizations && isAccessibilityEnabled && isForegroundServiceRunning
+    val allProtected = isIgnoringBatteryOptimizations && isForegroundServiceRunning
 
     ElevatedCard(
         modifier = modifier
@@ -75,7 +71,7 @@ fun BackgroundSurvivalCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Header Row (Always visible, acts as expand/collapse toggle)
+            // Header Row (acts as expand/collapse toggle)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -141,7 +137,7 @@ fun BackgroundSurvivalCard(
                         }
 
                         Text(
-                            text = if (allProtected) "All 3 survival layers active • OEM killers bypassed"
+                            text = if (allProtected) "Survival layers active • OEM killers bypassed"
                             else "Prevent OEM battery killers from stopping timers & watchers",
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -196,19 +192,6 @@ fun BackgroundSurvivalCard(
                         buttonIcon = Icons.Default.Refresh,
                         onClickAction = onRestartForegroundService,
                         testTag = "restart_guard_service_btn"
-                    )
-
-                    // Item 3: Accessibility Keep-Alive
-                    SurvivalChecklistItem(
-                        title = "3. Accessibility Keep-Alive (Optional)",
-                        description = "Gives the screenshot watcher top system priority on aggressive phones (MIUI, OneUI, ColorOS).",
-                        isActive = isAccessibilityEnabled,
-                        activeBadge = "Active (System Priority)",
-                        inactiveBadge = "Inactive (Optional)",
-                        buttonText = "Enable Accessibility Keep-Alive",
-                        buttonIcon = Icons.Default.AccessibilityNew,
-                        onClickAction = onRequestOpenAccessibilitySettings,
-                        testTag = "enable_accessibility_keepalive_btn"
                     )
                 }
             }
@@ -273,34 +256,36 @@ private fun SurvivalChecklistItem(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 15.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (!isActive) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onClickAction,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp)
-                        .testTag(testTag),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(
-                        imageVector = buttonIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = buttonText,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onClickAction,
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isActive) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isActive) MaterialTheme.colorScheme.onSecondaryContainer
+                    else MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier.testTag(testTag)
+            ) {
+                Icon(
+                    imageVector = buttonIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (isActive) "Recheck / Settings" else buttonText,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                )
             }
         }
     }

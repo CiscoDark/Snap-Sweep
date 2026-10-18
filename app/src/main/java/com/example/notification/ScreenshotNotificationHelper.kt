@@ -91,7 +91,7 @@ object ScreenshotNotificationHelper {
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setSmallIcon(android.R.drawable.ic_menu_gallery)
             .setContentTitle("New Screenshot Detected")
             .setContentText("${item.displayName} • Choose action:")
             .setStyle(
@@ -101,13 +101,13 @@ object ScreenshotNotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
-            .addAction(R.drawable.ic_launcher_monochrome, "Keep Forever", keepPendingIntent)
-            .addAction(R.drawable.ic_launcher_monochrome, "🔥 15m Burner", burnerPendingIntent)
-            .addAction(R.drawable.ic_launcher_monochrome, "Delete Now", deletePendingIntent)
+            .addAction(android.R.drawable.ic_menu_save, "Keep Forever", keepPendingIntent)
+            .addAction(android.R.drawable.ic_menu_recent_history, "🔥 15m Burner", burnerPendingIntent)
+            .addAction(android.R.drawable.ic_menu_delete, "Delete Now", deletePendingIntent)
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         try {
-            notificationManager.notify(NOTIFICATION_ID, builder.build())
+            notificationManager?.notify(NOTIFICATION_ID, builder.build())
         } catch (e: Exception) {
             e.printStackTrace()
         }

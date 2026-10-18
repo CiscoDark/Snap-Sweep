@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.app.PendingIntent
 import android.content.Context
 import android.content.IntentSender
 import androidx.lifecycle.AndroidViewModel
@@ -120,11 +121,6 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
     )
     val isIgnoringBatteryOptimizations: StateFlow<Boolean> = _isIgnoringBatteryOptimizations.asStateFlow()
 
-    private val _isAccessibilityEnabled = MutableStateFlow(
-        com.example.util.PowerOptimizationHelper.isAccessibilityServiceEnabled(application)
-    )
-    val isAccessibilityEnabled: StateFlow<Boolean> = _isAccessibilityEnabled.asStateFlow()
-
     private val _isForegroundServiceRunning = MutableStateFlow(true)
     val isForegroundServiceRunning: StateFlow<Boolean> = _isForegroundServiceRunning.asStateFlow()
 
@@ -207,7 +203,6 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
         _hasReadImagesPermission.value = MediaStoreScanner.hasReadImagesPermission(app)
         _hasManageStoragePermission.value = MediaStoreScanner.hasManageStoragePermission()
         _isIgnoringBatteryOptimizations.value = com.example.util.PowerOptimizationHelper.isIgnoringBatteryOptimizations(app)
-        _isAccessibilityEnabled.value = com.example.util.PowerOptimizationHelper.isAccessibilityServiceEnabled(app)
         if (_hasReadImagesPermission.value) {
             viewModelScope.launch {
                 repository.scanRealMedia()
@@ -240,15 +235,6 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
             context.startActivity(intent)
         } catch (e: Exception) {
             _message.value = "Unable to open battery optimization settings directly"
-        }
-    }
-
-    fun requestOpenAccessibilitySettings(context: Context) {
-        val intent = com.example.util.PowerOptimizationHelper.createAccessibilitySettingsIntent()
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            _message.value = "Unable to open accessibility settings directly"
         }
     }
 
@@ -288,12 +274,12 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
 
     fun deleteItem(item: ScreenshotItem) {
         viewModelScope.launch {
-            val pendingIntent = repository.deleteItem(item)
+            val pendingIntent: PendingIntent? = repository.trashItem(item)
             if (pendingIntent != null) {
                 itemAwaitingDelete = item
                 _pendingDeleteSender.value = pendingIntent.intentSender
             } else {
-                _message.value = "Deleted screenshot (${item.formattedSize} freed)"
+                _message.value = "Moved to Recycle Bin: ${item.displayName}"
             }
         }
     }
@@ -371,7 +357,7 @@ class ScreenshotViewModel(application: Application) : AndroidViewModel(applicati
                     _message.value = "Undid Keep: ${lastEntry.item.displayName}"
                 }
                 SwipeActionType.DELETE -> {
-                    repository.restoreDeletedItem(lastEntry.item)
+                    repository.restoreTrashedItem(lastEntry.item)
                     _message.value = "Restored: ${lastEntry.item.displayName}"
                 }
                 SwipeActionType.SNOOZE -> {

@@ -15,5 +15,7 @@ data class KeptScreenshotEntity(
     val keptAtMillis: Long = System.currentTimeMillis(),
     val snoozeUntilMillis: Long? = null,
     val category: String = "General",
-    val isOtpBurner: Boolean = false
+    val isOtpBurner: Boolean = false,
+    val isTrashed: Boolean = false,
+    val trashedAtMillis: Long? = null
 )

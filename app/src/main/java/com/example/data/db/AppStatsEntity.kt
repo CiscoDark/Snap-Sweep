@@ -11,5 +11,7 @@ data class AppStatsEntity(
     val totalBytesFreed: Long = 0L,
     val defaultExpirationMinutes: Long = 1440L, // 24 hours default
     val themeMode: String = "SYSTEM",
-    val pureBlackAmoled: Boolean = false
+    val pureBlackAmoled: Boolean = false,
+    val autoSweepEnabled: Boolean = false, // DISABLED BY DEFAULT on install
+    val installTimestamp: Long = 0L
 )
